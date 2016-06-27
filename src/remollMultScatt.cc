@@ -137,6 +137,7 @@ void remollMultScatt::Init( double p, int nmat, double t[], double A[], double Z
     }
 
     double b = log( bsum );
+
     assert( b > 1.0 );
 
     if( std::isnan(b) || std::isinf(b) || b <= 0.0 ){

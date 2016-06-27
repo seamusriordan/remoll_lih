@@ -70,9 +70,10 @@ void remollBeamTarget::UpdateInfo(){
     fLH2pos      = -1e9;
     fTotalLength = 0.0;
 
-    // Can't calculate anything without mother
-    if( !fMother ) return;
-    fZpos = fMother->GetFrameTranslation().z();
+    
+//    if( !fMother ) return;
+//    fZpos = fMother->GetFrameTranslation().z();
+    fZpos = 0.0;
 
     for(it = fTargVols.begin(); it != fTargVols.end(); it++ ){
 	// Assume everything is non-nested tubes
@@ -82,21 +83,19 @@ void remollBeamTarget::UpdateInfo(){
 	    exit(1);
 	}
 
-	if( (*it)->GetLogicalVolume()->GetMaterial()->GetName() == "LiquidHydrogen" ){
-	    if( fLH2Length >= 0.0 ){
-		G4cerr << "ERROR:  " << __PRETTY_FUNCTION__ << " line " << __LINE__ <<
-		    ":  Multiply defined LH2 volumes" << G4endl; 
-		exit(1);
-	    }
+        if( fLH2Length >= 0.0 ){
+            G4cerr << "ERROR:  " << __PRETTY_FUNCTION__ << " line " << __LINE__ <<
+                ":  Multiply defined LH2 volumes" << G4endl; 
+            exit(1);
+        }
 
-	    fLH2Length = ((G4Tubs *) (*it)->GetLogicalVolume()->GetSolid())->GetZHalfLength()*2.0
-		*(*it)->GetLogicalVolume()->GetMaterial()->GetDensity();
+        fLH2Length = ((G4Tubs *) (*it)->GetLogicalVolume()->GetSolid())->GetZHalfLength()*2.0
+            *(*it)->GetLogicalVolume()->GetMaterial()->GetDensity();
 
-	    fLH2pos    = (*it)->GetFrameTranslation().z();
+        fLH2pos    = (*it)->GetFrameTranslation().z();
 
-	    fTotalLength += ((G4Tubs *) (*it)->GetLogicalVolume()->GetSolid())->GetZHalfLength()*2.0
-		*(*it)->GetLogicalVolume()->GetMaterial()->GetDensity();
-	}
+        fTotalLength += ((G4Tubs *) (*it)->GetLogicalVolume()->GetSolid())->GetZHalfLength()*2.0
+            *(*it)->GetLogicalVolume()->GetMaterial()->GetDensity();
     }
 
     return;
@@ -229,14 +228,7 @@ remollVertex remollBeamTarget::SampleVertex(SampType_t samp){
     std::vector<G4VPhysicalVolume *>::iterator it;
     for(it = fTargVols.begin(); it != fTargVols.end() && !foundvol; it++ ){
 	mat = (*it)->GetLogicalVolume()->GetMaterial();
-	if( mat->GetName() == "LiquidHydrogen" ) { 
-	    isLH2 = true; 
-	} else { 
-	    isLH2 = false;
-	    G4cerr << "WARNING " << __PRETTY_FUNCTION__ << " line " << __LINE__ <<
-		": volume not LH2 has been specified, but handling not implemented" << G4endl;
-
-	} 
+        isLH2 = true; 
 
 	len = ((G4Tubs *) (*it)->GetLogicalVolume()->GetSolid())->GetZHalfLength()*2.0*mat->GetDensity();
 	switch( samp ){
@@ -317,6 +309,7 @@ remollVertex remollBeamTarget::SampleVertex(SampType_t samp){
 		} else {
 		    masssum += (*elvec)[i]->GetA();
 		}
+                printf("%f %f %f\n", mat->GetDensity(),zinvol,fracvec[i]);
 		msthick[nmsmat] = mat->GetDensity()*zinvol*fracvec[i];
 		msA[nmsmat] = (*elvec)[i]->GetA()*mole/g;
 		msZ[nmsmat] = (*elvec)[i]->GetZ();

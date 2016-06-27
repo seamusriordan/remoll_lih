@@ -58,254 +58,66 @@ remollDetectorConstruction::~remollDetectorConstruction() {
 }
 
 G4VPhysicalVolume* remollDetectorConstruction::Construct() {
-    G4VPhysicalVolume *worldVolume;
 
-    fIO->GrabGDMLFiles(fDetFileName);
+    double z,a,density;
+    int nelements;
 
-    if( fGDMLParser ){
-	delete fGDMLParser;
-    }
-    fGDMLParser = new G4GDMLParser();
-    fGDMLParser->Clear();
-    fGDMLParser->SetOverlapCheck(false);
-
-    fprintf(stdout, "Reading %s\n", fDetFileName.data());
+    G4Element* Al = new G4Element("Aluminum", "Al", z=13 , a=27*g/mole);
+    G4Material* Alu_mat = new G4Material("Alu_Mat", 2.7*g/cm3, nelements=1);
+    Alu_mat->AddElement(Al, 1);
 
 
-    fGDMLParser->Read(fDetFileName);
+    G4Element* N = new G4Element("Nitrogen", "N", z=7 , a=14.01*g/mole);
+    G4Element* O = new G4Element("Oxygen"  , "O", z=8 , a=16.00*g/mole);
 
-    worldVolume = fGDMLParser->GetWorldVolume();
-    
-  //====================================================
-  // Associate target volumes with beam/target class
-  // This has to match what is declared in the GDML volumes
-  // We absolutely need some connection between the geometry
-  // structure and having access to the physical volumes.  
-  // This could be made more general with a full treesearch
-  //====================================================
+    G4Material* Air = new G4Material("Air", density=1.29*mg/cm3, nelements=2);
+    Air->AddElement(N, 70.*perCent);
+    Air->AddElement(O, 30.*perCent);
 
-    remollBeamTarget *beamtarg = remollBeamTarget::GetBeamTarget();
-    beamtarg->Reset();
-    G4LogicalVolume *thislog = worldVolume->GetLogicalVolume();
-    G4int vidx = 0;
+    double world_x, world_y, world_z;
+    world_x = world_y = world_z = 275*cm;
+    G4Box* world_box = new G4Box("World",world_x,world_y,world_z);
+    G4LogicalVolume* world_log
+        = new G4LogicalVolume(world_box,Air,"World",0,0,0);
 
-    G4String targetmothername = "logicTarget";
-    while( vidx < thislog->GetNoDaughters() ){
-	if( thislog->GetDaughter(vidx)->GetName() == targetmothername.append("_PV")) break;
-	vidx++; 
-    }
-    if( vidx == thislog->GetNoDaughters() ){
-	G4cerr << "WARNING " << __PRETTY_FUNCTION__ << " line " << __LINE__ <<
-	    ":  target definition structure in GDML not valid" << G4endl;
-    } else {
-	beamtarg->SetMotherVolume(thislog->GetDaughter(vidx));
-
-	thislog = thislog->GetDaughter(vidx)->GetLogicalVolume();
+    double target_thick = 0.2*mm;
 
 
-	////////////////////////////////////////////////////////////////////////////////
-	// List relevant target volumes here terminated by "" //////////////////////////
-	// FIXME:  This could probably be done better with auxiliary information
-	//         though that only gives us *logical* volumes and we need the physical
-	//         volumes for placement information
-	//
-	//         *ORDERING IS IMPORTANT - MUST GO UPSTREAM TO DOWNSTREAM*
-	//         FIXME:  can sort that on our own
-	G4String targvolnames[] = {
-	    "h2Targ", ""
-	};
-	////////////////////////////////////////////////////////////////////////////////
-
-	int nidx = 0;
-	while( targvolnames[nidx] != "" ){
-	    vidx = 0;
-	    while( vidx < thislog->GetNoDaughters() ){
-		if( thislog->GetDaughter(vidx)->GetName() == targvolnames[nidx].append("_PV")) break;
-		vidx++; 
-	    }
-	    if( vidx == thislog->GetNoDaughters() ){
-		G4cerr << "Error " << __PRETTY_FUNCTION__ << " line " << __LINE__ <<
-		    ":  target definition structure in GDML not valid.  Could not find volume " << targvolnames[nidx] << G4endl;
-		exit(1);
-	    }
-
-	    beamtarg->AddVolume(thislog->GetDaughter(vidx));
-	    nidx++;
-	}
-    }
-
-  //==========================
-  // List auxiliary info
-  //==========================
-
-  const G4GDMLAuxMapType* auxmap = fGDMLParser->GetAuxMap();
-
-  G4cout << "Found " << auxmap->size()
-         << " volume(s) with auxiliary information."
-	 << G4endl << G4endl;
-  for(G4GDMLAuxMapType::const_iterator
-	  iter  = auxmap->begin();
-	  iter != auxmap->end(); iter++) {
-      G4cout << "Volume " << ((*iter).first)->GetName()
-	     << " has the following list of auxiliary information: "<< G4endl;
-      for (G4GDMLAuxListType::const_iterator
-	      vit  = (*iter).second.begin();
-	      vit != (*iter).second.end(); vit++) {
-	G4cout << "--> Type: " << (*vit).type
-	       << " Value: "   << (*vit).value << std::endl;
-
-        if ((*vit).type == "Visibility") {
-          G4Colour colour(1.0,1.0,1.0);
-          const G4VisAttributes* visAttribute_old = ((*iter).first)->GetVisAttributes();
-          if (visAttribute_old)
-            colour = visAttribute_old->GetColour();
-          G4VisAttributes visAttribute_new(colour);
-          if ((*vit).value == "true")
-            visAttribute_new.SetVisibility(true);
-          if ((*vit).value == "false")
-            visAttribute_new.SetVisibility(false);
-          if ((*vit).value == "wireframe")
-            visAttribute_new.SetForceWireframe(false);
-          ((*iter).first)->SetVisAttributes(visAttribute_new);
-        }
-
-        if ((*vit).type == "Color") {
-          G4Colour colour(1.0,1.0,1.0);
-          if (G4Colour::GetColour((*vit).value, colour)) {
-            G4cout << "Setting color to " << (*vit).value << "." << G4endl;
-            G4VisAttributes visAttribute(colour);
-            ((*iter).first)->SetVisAttributes(visAttribute);
-          } else {
-            G4cout << "Colour " << (*vit).value << " is not known." << G4endl;
-          }
-        }
-
-        if ((*vit).type == "Alpha") {
-          G4Colour colour(1.0,1.0,1.0);
-          const G4VisAttributes* visAttribute_old = ((*iter).first)->GetVisAttributes();
-          if (visAttribute_old)
-            colour = visAttribute_old->GetColour();
-          G4Colour colour_new(
-              colour.GetRed(), 
-              colour.GetGreen(),
-              colour.GetBlue(),
-              std::atof((*vit).value.c_str()));
-          G4VisAttributes visAttribute_new(colour_new);
-          ((*iter).first)->SetVisAttributes(visAttribute_new);
-        }
-      }
-  }
-  G4cout << G4endl<< G4endl;
+    G4Tubs* target_center= new G4Tubs("target_center", 0, 1.25*cm, target_thick/2, 0.0, 360*deg);
+    G4LogicalVolume *target_center_log = new G4LogicalVolume(target_center, Alu_mat, "target_center_log", 0, 0, 0);
+    G4VPhysicalVolume* target_center_phys = new G4PVPlacement(0,G4ThreeVector(0,0,0),target_center_log,"target_center_phys",world_log,false,0);
 
 
-  //==========================
-  // Sensitive detectors
-  //==========================
-  G4SDManager* SDman = G4SDManager::GetSDMpointer();
-  char detectorname[__DET_STRLEN];
-  int retval;
+    G4Tubs* target_upwall= new G4Tubs("target_upwall", 0, 1.25*cm, 100*um/2, 0.0, 360*deg);
+    G4LogicalVolume *target_upwall_log = new G4LogicalVolume(target_upwall, Alu_mat, "target_upwall_log", 0, 0, 0);
+    G4VPhysicalVolume* target_upwall_phys = new G4PVPlacement(0,G4ThreeVector(0,0,target_thick/2+50*um),target_upwall_log,"target_upwall_phys",world_log,false,0);
 
-  G4VSensitiveDetector* thisdet;
+    G4Tubs* target_downwall= new G4Tubs("target_downwall", 0, 1.25*cm, 100*um/2, 0.0, 360*deg);
+    G4LogicalVolume *target_downwall_log = new G4LogicalVolume(target_downwall, Alu_mat, "target_downwall_log", 0, 0, 0);
+    G4VPhysicalVolume* target_downwall_phys = new G4PVPlacement(0,G4ThreeVector(0,0,target_thick/2+50*um),target_downwall_log,"target_downwall_phys",world_log,false,0);
 
-  G4int k=0;
-
-  G4GDMLAuxMapType::const_iterator iter;
-  G4GDMLAuxListType::const_iterator vit, nit;
-
-  G4cout << "Beginning sensitive detector assignment" << G4endl;
-
-  G4bool useddetnums[__MAX_DETS];
-  for( k = 0; k < __MAX_DETS; k++ ){useddetnums[k] = false;}
-  k = 0;
-
-  for( iter  = auxmap->begin(); iter != auxmap->end(); iter++) {
-      G4LogicalVolume* myvol = (*iter).first;
-      G4cout << "Volume " << myvol->GetName() << G4endl;
-
-      for( vit  = (*iter).second.begin(); vit != (*iter).second.end(); vit++) {
-	  if ((*vit).type == "SensDet") {
-	      G4String det_type = (*vit).value;
-
-	      // Also allow specification of det number ///////////////////
-	      int det_no = -1;
-	      for( nit  = (*iter).second.begin(); nit != (*iter).second.end(); nit++) {
-		  if ((*nit).type == "DetNo") {
-		      det_no= atoi((*nit).value.data());
-		      if( det_no >= __MAX_DETS ){
-			  G4cerr << __FILE__ << " line " << __LINE__ << ": ERROR detector number too high" << G4endl;
-			  exit(1);
-		      }
-		      useddetnums[det_no] = true;
-		  }
-	      }
-	      if( det_no <= 0 ){
-		  k = 1;
-		  while( useddetnums[k] == true && k < __MAX_DETS ){ k++; }
-		  if( k >= __MAX_DETS ){
-		      G4cerr << __FILE__ << " line " << __LINE__ << ": ERROR too many detectors" << G4endl;
-		      exit(1);
-		  }
-		  det_no = k;
-		  useddetnums[k] = true;
-	      }
-	      /////////////////////////////////////////////////////////////
-
-	      retval = snprintf(detectorname, __DET_STRLEN,"remoll/det_%d", det_no);
-
-	      assert( 0 < retval && retval < __DET_STRLEN ); // Ensure we're writing reasonable strings
-
-	      thisdet = SDman->FindSensitiveDetector(detectorname);
-
-	      if( thisdet == 0 ) {
-		  thisdet = new remollGenericDetector(detectorname, det_no);
-		  G4cout << "  Creating sensitive detector " << det_type
-		      << " for volume " << myvol->GetName()
-		      <<  G4endl << G4endl;
-		  SDman->AddNewDetector(thisdet);
-	      }
-
-	      myvol->SetSensitiveDetector(thisdet);
-	  }
-      }
-  }
-
-  G4cout << "Completed sensitive detector assignment" << G4endl;
+     G4VPhysicalVolume* worldVolume
+         = new G4PVPlacement(0,G4ThreeVector(),world_log,"World",0,false,0);
 
 
-  //==========================
-  // Visualization attributes
-  //==========================
+     // Set target volume for generator
 
-  G4VisAttributes* motherVisAtt= new G4VisAttributes(G4Colour(1.0,1.0,1.0));
-  motherVisAtt->SetVisibility(false);
-  worldVolume->GetLogicalVolume()->SetVisAttributes(motherVisAtt);
+     remollBeamTarget *beamtarg = remollBeamTarget::GetBeamTarget();
+     beamtarg->Reset();
+     // Choose where these come from
+     beamtarg->AddVolume(target_center_phys);
+//     beamtarg->AddVolume(target_upwall_phys);
+//     beamtarg->AddVolume(target_downwall_phys);
 
-  G4VisAttributes* daughterVisAtt= new G4VisAttributes(G4Colour(1.0,1.0,1.0));
-  daughterVisAtt->SetForceWireframe (true);
-  for(int i=0;i<worldVolume->GetLogicalVolume()->GetNoDaughters();i++){
-      worldVolume->GetLogicalVolume()->GetDaughter(i)->GetLogicalVolume()->SetVisAttributes(daughterVisAtt);
-  }
+    G4Box* detector = new G4Box("detector", 1*m, 1*m, 1*mm );
+    G4LogicalVolume *detector_log = new G4LogicalVolume(detector, Alu_mat, "target_upwall_log", 0, 0, 0);
+    G4VPhysicalVolume* detector_phys = new G4PVPlacement(0,G4ThreeVector(0,0,0),detector_log,"detector_phys",world_log,false,0);
 
-  //==========================
-  // Output geometry tree
-  //==========================
+     G4SDManager* SDman = G4SDManager::GetSDMpointer();
+     SDman->AddNewDetector(new remollGenericDetector("mydet", 1));
 
-  G4cout << G4endl << "Element table: " << G4endl << G4endl;
-  G4cout << *(G4Element::GetElementTable()) << G4endl;
 
-  G4cout << G4endl << "Material table: " << G4endl << G4endl;
-  G4cout << *(G4Material::GetMaterialTable()) << G4endl;
-
-  UpdateCopyNo(worldVolume,1); 
-    
-    
-  G4cout << G4endl << "Geometry tree: " << G4endl << G4endl;
-  //commented out the below dump geometry routine to save terminal output length 
-  DumpGeometricalTree(worldVolume);   
-  
-  G4cout << G4endl << "###### Leaving remollDetectorConstruction::Read() " << G4endl << G4endl;
-  
-  return worldVolume;
+    return worldVolume;
 }
 
 G4int remollDetectorConstruction::UpdateCopyNo(G4VPhysicalVolume* aVolume,G4int index){  
