@@ -74,6 +74,14 @@ G4VPhysicalVolume* remollDetectorConstruction::Construct() {
     Air->AddElement(N, 70.*perCent);
     Air->AddElement(O, 30.*perCent);
 
+    G4Element* Li = new G4Element("Lithium",  "Li", z=3 , a=6.94*g/mole);
+    G4Element* H  = new G4Element("Hydrogen", "H",  z=1 , a=1.008*g/mole);
+
+    G4Material* LiH_mat= new G4Material("LiH", density=7.95*g/cm3, nelements=2);
+    LiH_mat->AddElement(Li, 1);
+    LiH_mat->AddElement(H, 1);
+
+
     double world_x, world_y, world_z;
     world_x = world_y = world_z = 275*cm;
     G4Box* world_box = new G4Box("World",world_x,world_y,world_z);
@@ -84,7 +92,7 @@ G4VPhysicalVolume* remollDetectorConstruction::Construct() {
 
 
     G4Tubs* target_center= new G4Tubs("target_center", 0, 1.25*cm, target_thick/2, 0.0, 360*deg);
-    G4LogicalVolume *target_center_log = new G4LogicalVolume(target_center, Alu_mat, "target_center_log", 0, 0, 0);
+    G4LogicalVolume *target_center_log = new G4LogicalVolume(target_center, LiH_mat, "target_center_log", 0, 0, 0);
     G4VPhysicalVolume* target_center_phys = new G4PVPlacement(0,G4ThreeVector(0,0,0),target_center_log,"target_center_phys",world_log,false,0);
 
 
