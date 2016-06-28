@@ -192,8 +192,13 @@ void remollGenMott::SamplePhysics(remollVertex *vert, remollEvent *evt){
     double samp_fact = sampv*sampv*(icth_a-icth_b)/(cthmin-cthmax);
 
     double ph = CLHEP::RandFlat::shoot(0.0, 2.0*pi);
+    
+    // Randomly sample
+    int thiselidx = CLHEP::RandFlat::shootInt(vert->GetMaterial()->GetNumberOfElements());
+    const G4Element *thisel = vert->GetMaterial()->GetElement(thiselidx);
+    double thismass = thisel->GetA()*mole/g;
 
-    double ef    = proton_mass_c2*beamE/(proton_mass_c2 + beamE*(1.0-cos(th)));;
+    double ef    = proton_mass_c2*thismass*beamE/(proton_mass_c2*thismass + beamE*(1.0-cos(th)));;
 
     double q2  = 2.0*beamE*ef*(1.0-cos(th));
     double tau = q2/(4.0*proton_mass_c2*proton_mass_c2);
@@ -213,19 +218,16 @@ void remollGenMott::SamplePhysics(remollVertex *vert, remollEvent *evt){
 
     // Get total number of atoms
 
-    // Randomly sample
-    int thiselidx = CLHEP::RandFlat::shootInt(vert->GetMaterial()->GetNumberOfElements());
-    const G4Element *thisel = vert->GetMaterial()->GetElement(thiselidx);
 
     // FIXME:  Put in A-dependent cross section
     // with thisel->GetA()
 
     // Annu Rev Nucl Sci 1957.7:231-316, eq 129
-    double a = pow(thisel->GetA(), 1.0/3.0)*1.2*fermi;
+    double a = pow(thisel->GetA()*mole/g, 1.0/3.0)*1.2*fermi;
     double alpha_N = (thisel->GetZ() - 2.0)/3.0;
     double a0 = a/(sqrt((3.0*(2.0+5.0*alpha_N))/(2.0*(2.0+3.0*alpha_N))));
     double q = sqrt(q2)/hbarc;
-    double F_generic = (1.0 - ( ( alpha_N*q*q*a0*a0)/(2.0*(2.0+3.0*alpha))))*exp(-q*q*a0*a0/4.0); 
+    double F_generic = (1.0 - ( ( alpha_N*q*q*a0*a0)/(2.0*(2.0+3.0*alpha_N))))*exp(-q*q*a0*a0/4.0); 
 
     double sigma = 0.0;
 
