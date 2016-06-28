@@ -221,10 +221,10 @@ void remollGenMott::SamplePhysics(remollVertex *vert, remollEvent *evt){
     // with thisel->GetA()
 
     // Annu Rev Nucl Sci 1957.7:231-316, eq 129
-    double a = pow(thisel->GetA(), 1.0/3.0)*1.2*fm;
+    double a = pow(thisel->GetA(), 1.0/3.0)*1.2*fermi;
     double alpha_N = (thisel->GetZ() - 2.0)/3.0;
     double a0 = a/(sqrt((3.0*(2.0+5.0*alpha_N))/(2.0*(2.0+3.0*alpha_N))));
-    double q = sqrt(q2)/(hbar*c);
+    double q = sqrt(q2)/hbarc;
     double F_generic = (1.0 - ( ( alpha_N*q*q*a0*a0)/(2.0*(2.0+3.0*alpha))))*exp(-q*q*a0*a0/4.0); 
 
     double sigma = 0.0;
